@@ -139,7 +139,7 @@ private static JFreeChart createChart(XYDataset dataset) {
 	renderer.setBaseShapesFilled(true);
 	}
 	DateAxis axis = (DateAxis) plot.getDomainAxis();
-	axis.setDateFormatOverride(new SimpleDateFormat("mm/dd-hh:mm"));
+	axis.setDateFormatOverride(new SimpleDateFormat("MM/dd-hh:mm"));
 	return chart;
 }
 

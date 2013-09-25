@@ -58,13 +58,26 @@ public class MainWindow {
 		final JButton consumptionButton = new JButton("consumption_123.csv");
 		consumptionButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {		
-				System.out.println("Consumtion button was pressed!");
+				System.out.println("Consumption button was pressed!");
 				JFileChooser fileopen = new JFileChooser();
 				int ret = fileopen.showDialog(frame, "Open consumption file");
 				if (ret == JFileChooser.APPROVE_OPTION) {
+					JLabel lblNewLabel1 = new JLabel("Please wait, it's really loading..");
+	        		lblNewLabel1.setBounds(500, 500, 200, 15);
+	        		frame.getContentPane().add(lblNewLabel1);
 				    consumptionFile = fileopen.getSelectedFile();
 					System.out.println("Consumption file is:"+consumptionFile.getName());
-					consumptionButton.setText(consumptionFile.getName());					
+					consumptionButton.setText(consumptionFile.getName());
+					try {
+						
+		        		frame.setVisible(true);
+		        		
+						PVLogElement.readWithCsvMapReader(consumptionFile, frame, lblNewLabel1);
+						
+					} catch (Exception e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					}
 				}
 			}
 		});
@@ -74,26 +87,13 @@ public class MainWindow {
 		final JButton pvLogButton = new JButton("PV panel log..");
 		pvLogButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				System.out.println("Consumtion button was pressed!");
+				System.out.println("PV Panel Log button was pressed!");
 				JFileChooser fileopen = new JFileChooser();
 				int ret = fileopen.showDialog(frame, "Open PV Log file");
 				if (ret == JFileChooser.APPROVE_OPTION) {
-					JLabel lblNewLabel1 = new JLabel("Please wait, it's really loading..");
-	        		lblNewLabel1.setBounds(500, 500, 200, 15);
-	        		frame.getContentPane().add(lblNewLabel1);
-				    pvLogFile = fileopen.getSelectedFile();
+					pvLogFile = fileopen.getSelectedFile();
 					System.out.println("PV Log file is:"+pvLogFile.getName());
 					pvLogButton.setText(pvLogFile.getName());
-					try {
-						
-		        		frame.setVisible(true);
-		        		
-						PVLogElement.readWithCsvMapReader(pvLogFile, frame, lblNewLabel1);
-						
-					} catch (Exception e1) {
-						// TODO Auto-generated catch block
-						e1.printStackTrace();
-					}
 				}
 			}
 		});
