@@ -2,6 +2,7 @@ import javax.swing.*;
 import javax.swing.filechooser.*;
 
 import java.io.*;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Properties;
 import java.awt.EventQueue;
@@ -23,6 +24,7 @@ import com.jgoodies.forms.layout.ColumnSpec;
 import com.jgoodies.forms.layout.RowSpec;
 
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.GridBagLayout;
 import java.awt.GridBagConstraints;
 import java.awt.Insets;
@@ -41,15 +43,18 @@ import java.beans.PropertyChangeListener;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
+import org.jfree.chart.annotations.XYTextAnnotation;
 import org.jfree.chart.axis.DateAxis;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.xy.XYDifferenceRenderer;
 import org.jfree.chart.renderer.xy.XYItemRenderer;
 import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
+import org.jfree.data.time.DateRange;
 import org.jfree.data.time.Hour;
 import org.jfree.data.time.TimeSeries;
 import org.jfree.data.time.TimeSeriesCollection;
 import org.jfree.ui.RectangleInsets;
+import org.jfree.ui.TextAnchor;
 import org.jfree.data.general.*;
 
 import java.util.Date;
@@ -60,6 +65,7 @@ public class MainWindow {
 	private JFrame frame;
 	private File consumptionFile;
 	private File pvLogFile;
+	private boolean showGraph;
 
 	/**
 	 * Launch the application.
@@ -97,6 +103,33 @@ public class MainWindow {
 		frame.setBounds(100, 100, 1300, 700);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.setVisible(true);
+
+		showGraph = true;
+		MouseAdapter mouseadapter = new MouseAdapter() {
+			public void mousePressed(MouseEvent e) {
+//				showGraph = false;
+				System.out.println("\n showGraph: " + showGraph);
+			}
+			public void mouseReleased(MouseEvent e) {
+//				showGraph = true;
+				System.out.println("\n showGraph: " + showGraph);
+			}
+		};
+
+		final XYTextAnnotation annotationCE = new XYTextAnnotation("", 10.D, 10.D);
+		annotationCE.setTextAnchor(TextAnchor.HALF_ASCENT_LEFT);
+		annotationCE.setOutlineVisible(false);
+		annotationCE.setPaint(Color.red);
+
+		final XYTextAnnotation annotationPV = new XYTextAnnotation("", 10.D, 10.D);
+		annotationPV.setTextAnchor(TextAnchor.HALF_ASCENT_LEFT);
+		annotationPV.setOutlineVisible(false);
+		annotationPV.setPaint(Color.green);
+
+		final XYTextAnnotation annotationPB = new XYTextAnnotation("", 10.D, 10.D);
+		annotationPB.setTextAnchor(TextAnchor.HALF_ASCENT_LEFT);
+		annotationPB.setOutlineVisible(false);
+		annotationPB.setPaint(Color.blue);
 		
 		JPanel panel_5 = new JPanel();
 		panel_5.setBounds(-1, 5, 1287, 66);
@@ -126,16 +159,14 @@ public class MainWindow {
 	        		frame.getContentPane().add(lblNewLabel1);
 				    consumptionFile = fileopen.getSelectedFile();
 					System.out.println("Consumption file is:"+consumptionFile.getName());
-//					consumptionButton.setText(consumptionFile.getName());
 					try {
 						
 		        		frame.setVisible(true);
-		        		PVLogElement.readWithCsvMapReader2(consumptionFile, ConsumptionSeries, dateChooserBegin, dateChooserEnd, true);
-		        		
-//						PVLogElement.readWithCsvMapReader(consumptionFile, frame, lblNewLabel1);
-						
+		        		PVLogElement.setConsumptionPreference(consumptionFile);
+		        		DateRange range = PVLogElement.getDataInterval();
+		        		dateChooserBegin.setDate(range.getLowerDate());
+		        		dateChooserEnd.setDate(range.getUpperDate());
 					} catch (Exception e1) {
-						// TODO Auto-generated catch block
 						e1.printStackTrace();
 					}
 				}
@@ -156,16 +187,34 @@ public class MainWindow {
 		
 		JLabel lblAzimuth = new JLabel("Azimuth:");
 		panel_1.add(lblAzimuth);
+		final JSpinner AzimuthSpinner = new JSpinner();
+		final JSpinner InclinationSpinner = new JSpinner();
+		final JSpinner PVPowerSpinner = new JSpinner();
+		ChangeListener PVPreferenceListener = new ChangeListener() {
+			public void stateChanged(ChangeEvent e) {
+				try {
+					System.out.println("\n Preference changed: " + showGraph);
+					if(showGraph){
+						PVLogElement.setPVPreference(pvLogFile, (Double)PVPowerSpinner.getValue(), (Double)AzimuthSpinner.getValue(), (Double)InclinationSpinner.getValue());
+					}
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
+			}
+		}; 
 		
-		JSpinner spinner_3 = new JSpinner();
-		spinner_3.setModel(new SpinnerNumberModel(new Integer(0), null, null, new Integer(0)));
-		panel_1.add(spinner_3);
+		AzimuthSpinner.addChangeListener(PVPreferenceListener);
+		AzimuthSpinner.addMouseListener(mouseadapter);
+		AzimuthSpinner.setModel(new SpinnerNumberModel(new Double(0), null, null, new Double(1)));
+		panel_1.add(AzimuthSpinner);
 		
 		JLabel lblInclonation = new JLabel("Inclination:");
 		panel_1.add(lblInclonation);
 		
-		JSpinner spinner_2 = new JSpinner();
-		panel_1.add(spinner_2);
+		InclinationSpinner.addChangeListener(PVPreferenceListener);
+		InclinationSpinner.addMouseListener(mouseadapter);
+		InclinationSpinner.setModel(new SpinnerNumberModel(new Double(0), null, null, new Double(1)));
+		panel_1.add(InclinationSpinner);
 		pvLogButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				System.out.println("PV Panel Log button was pressed!");
@@ -176,19 +225,13 @@ public class MainWindow {
 				int ret = fileopen.showDialog(frame, "Open PV Log file");
 				if (ret == JFileChooser.APPROVE_OPTION) {
 					pvLogFile = fileopen.getSelectedFile();
-					System.out.println("PV Log file is:"+pvLogFile.getName());
 					try {
 						
 		        		frame.setVisible(true);
-		        		PVLogElement.readWithCsvMapReader3(pvLogFile, PVSeries, dateChooserBegin, dateChooserEnd);
-		        		
-//						PVLogElement.readWithCsvMapReader(consumptionFile, frame, lblNewLabel1);
-						
+		        		PVLogElement.setPVPreference(pvLogFile, (Double)PVPowerSpinner.getValue(), (Double)AzimuthSpinner.getValue(), (Double)InclinationSpinner.getValue());
 					} catch (Exception e1) {
-						// TODO Auto-generated catch block
 						e1.printStackTrace();
 					}
-//					pvLogButton.setText(pvLogFile.getName());
 				}
 			}
 		});
@@ -200,39 +243,27 @@ public class MainWindow {
 		
 		JLabel lblNewLabel = new JLabel("From:");
 		panel_2.add(lblNewLabel);
-		
-		dateChooserBegin.addPropertyChangeListener(new PropertyChangeListener() {
+		PropertyChangeListener intervalListener = new PropertyChangeListener() {
 			public void propertyChange(PropertyChangeEvent evt) {
 				try {
 	        		frame.setVisible(true);
-	        		if(dateChooserBegin.getDate().after(dateChooserEnd.getDate())){
-	        			dateChooserBegin.setDate(dateChooserEnd.getDate());
+	        		if(dateChooserBegin.getDate()!=null && dateChooserEnd.getDate()!=null && dateChooserBegin.getDate().after(dateChooserEnd.getDate())){
+	        			dateChooserEnd.setDate(dateChooserBegin.getDate());
 	        		}
-	        		PVLogElement.readWithCsvMapReader2(consumptionFile, ConsumptionSeries, dateChooserBegin, dateChooserEnd, false);
-	        		PVLogElement.readWithCsvMapReader3(pvLogFile, PVSeries, dateChooserBegin, dateChooserEnd);
+	        		PVLogElement.setCalculationInterval(dateChooserBegin.getDate(),dateChooserEnd.getDate());
 				} catch (Exception e1) {
 					e1.printStackTrace();
 				}
 			}
-		});
+		};
+		
+		dateChooserBegin.addPropertyChangeListener(intervalListener);
 		panel_2.add(dateChooserBegin);
 		
 		JLabel lblNewLabel_1 = new JLabel("To:");
 		panel_2.add(lblNewLabel_1);
 		
-		dateChooserEnd.addPropertyChangeListener(new PropertyChangeListener() {
-			public void propertyChange(PropertyChangeEvent evt) {
-				try {
-	        		frame.setVisible(true);
-	        		if(dateChooserEnd.getDate().before(dateChooserBegin.getDate())){
-	        			dateChooserEnd.setDate(dateChooserBegin.getDate());
-	        		}
-	        		PVLogElement.readWithCsvMapReader2(consumptionFile, ConsumptionSeries, dateChooserBegin, dateChooserEnd, false);
-				} catch (Exception e1) {
-					e1.printStackTrace();
-				}
-			}
-		});
+		dateChooserEnd.addPropertyChangeListener(intervalListener);
 		panel_2.add(dateChooserEnd);
 		
 		JPanel panel_3 = new JPanel();
@@ -240,25 +271,34 @@ public class MainWindow {
 		panel_3.setBorder(new TitledBorder(null, "PV nominal power", TitledBorder.LEADING, TitledBorder.TOP, null, null));
 		panel_3.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));
 		
-		final JSpinner spinner_1 = new JSpinner();
-		spinner_1.setModel(new SpinnerNumberModel(0.0, 0.0, 100.0, 0.05));
+		PVPowerSpinner.setModel(new SpinnerNumberModel(5.0, 0.0, 100.0, 0.05));
 		final JSlider slider_1 = new JSlider();
+		slider_1.addMouseListener(mouseadapter);
 		slider_1.setMaximum(1000);
-		slider_1.setValue(0);
+		slider_1.setValue(5);
 		slider_1.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
-				spinner_1.setValue(slider_1.getValue()/10.);
+				PVPowerSpinner.setValue(slider_1.getValue()/10.);
 			}
 		});
-		spinner_1.addChangeListener(new ChangeListener() {
+		PVPowerSpinner.addMouseListener(mouseadapter);
+		PVPowerSpinner.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
-				Double val = 10. * (Double)spinner_1.getValue();
+				Double val = 10. * (Double)PVPowerSpinner.getValue();
 				slider_1.setValue(val.intValue());
+				try {
+					System.out.println("\n PVPower change: " + showGraph);
+					if(showGraph) {
+						PVLogElement.setPVPreference(pvLogFile, (Double)PVPowerSpinner.getValue(), (Double)AzimuthSpinner.getValue(), (Double)InclinationSpinner.getValue());
+					}
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
 			}
 		});		
 		panel_3.add(slider_1);
 		
-		panel_3.add(spinner_1);
+		panel_3.add(PVPowerSpinner);
 		
 		JLabel label = new JLabel("kWh");
 		panel_3.add(label);
@@ -276,15 +316,24 @@ public class MainWindow {
 		final JSlider slider = new JSlider();
 		slider.setMaximum(1000);
 		slider.setValue(0);
+		slider.addMouseListener(mouseadapter);
 		slider.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
 				spinner.setValue(slider.getValue()/10.);
 			}
 		});
+		spinner.addMouseListener(mouseadapter);
 		spinner.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
 				Double val = (Double)spinner.getValue()*10.;
 				slider.setValue(val.intValue());
+				try {
+					if(showGraph) {
+						PVLogElement.setBatteryPreference((Double)spinner.getValue());
+					}
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
 			}
 		});
 		frame.getContentPane().setLayout(null);
@@ -315,7 +364,7 @@ public class MainWindow {
 		dataset.addSeries(ConsumptionSeries);
 		dataset.addSeries(ProductionSeries);
 		dataset.addSeries(PVSeries);
-		dataset.addSeries(BASeries);
+//		dataset.addSeries(BASeries);
 		
 		JFreeChart chart = ChartFactory.createTimeSeriesChart(
 				"Solar Estimator Chart",
@@ -356,6 +405,11 @@ public class MainWindow {
 		chartPanel.setBounds(-1, 70, 1287, 592);
 		frame.getContentPane().add(chartPanel);
 		
-		PVLogElement.setSeries(ConsumptionSeries,PVSeries,ProductionSeries);
+		plot.addAnnotation(annotationCE);
+		plot.addAnnotation(annotationPV);
+		plot.addAnnotation(annotationPB);
+		
+		PVLogElement.setSeriesAndAnnotations(ConsumptionSeries,PVSeries,ProductionSeries,annotationCE,annotationPV,annotationPB);
+		
 	}
 }
