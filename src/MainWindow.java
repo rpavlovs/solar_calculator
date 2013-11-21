@@ -5,9 +5,9 @@ import java.io.*;
 import java.net.URL;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
-import java.util.Enumeration;
 import java.util.Properties;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.Font;
 import java.awt.event.*;
@@ -31,6 +31,7 @@ import org.jfree.chart.annotations.XYTextAnnotation;
 import org.jfree.chart.axis.AxisLocation;
 import org.jfree.chart.axis.DateAxis;
 import org.jfree.chart.axis.NumberAxis;
+import org.jfree.chart.labels.StandardXYToolTipGenerator;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.xy.StandardXYItemRenderer;
 import org.jfree.chart.renderer.xy.XYDifferenceRenderer;
@@ -38,12 +39,16 @@ import org.jfree.chart.renderer.xy.XYItemRenderer;
 import org.jfree.data.time.DateRange;
 import org.jfree.data.time.TimeSeries;
 import org.jfree.data.time.TimeSeriesCollection;
-import org.jfree.ui.Layer;
+import org.jfree.data.xy.XYDataset;
+import org.jfree.ui.Align;
 import org.jfree.ui.RectangleInsets;
 import org.jfree.ui.TextAnchor;
 import org.jfree.data.general.*;
 
 import java.awt.Component;
+import java.awt.BorderLayout;
+
+import javax.swing.border.LineBorder;
 
 public class MainWindow {
 
@@ -61,6 +66,22 @@ public class MainWindow {
 		} catch (Throwable e) {
 			e.printStackTrace();
 		}
+// TODO: -Command line parameters would simplify testing and use (e.g. alpha.exe /load.csv /pv.txt)
+//		Нужно определить весь перечень параметров которые будут доступны из командной строки где-то из расчета 15-30 минут на один параметр.
+//		Сделайте эти два.
+		
+// -c=consumption consumption file
+// -i=insolation insolation file
+// start datetime
+// end datetime
+// -df=dateformat datetime format
+// 
+		
+// TODO: Надо вместо выбора абсолютной мощности генерации сделать просто коэффициент к загружаемым данным. Значения коэффициента 0.8, 0.9, 1.0, 1.1, 1.2. Выпадающий список с -20%, -10%, 0%, +10%, +20%		
+// TODO: Сделайте добавление начального значения SOC.		
+// TODO: Перенести сюда config и использовать его-же для хранения указания параметров коммандной строки.
+// TODO: Прогресс индикатор не нужен. Нужно только сообщение с перичислением интервалов или меток даты/времени, за которые данные отсутвуют. Сколько это займет?
+// TODO: -Sometimes we need to modify raw data in Excel or open office. There are small changes in date format pursuant to this which currently lead to error. Could we define this in config, e.g. format would change from dd/mm/yyyy hh:mm to dd.mm.yyyy hh:mm		
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
@@ -85,9 +106,11 @@ public class MainWindow {
 	 */
 	private void initialize() {
 		frame = new JFrame();
-		frame.setBounds(100, 100, 1370, 700);
+		frame.setBounds(100, 100, 1280, 768);
+		frame.setMinimumSize(new Dimension(1366, 768));
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.setVisible(true);
+		frame.setTitle("Solar Estimator");
 
 		showGraph = true;
 		MouseAdapter mouseadapter = new MouseAdapter() {
@@ -105,7 +128,7 @@ public class MainWindow {
 		Font font = new Font("SansSerif", Font.PLAIN, 14);
 
 		final XYTextAnnotation[] annotation = new XYTextAnnotation[4];
-		annotation[0]= new XYTextAnnotation("", 10.D,
+		annotation[0]= new XYTextAnnotation("1", 10.D,
 				10.D);
 		annotation[0].setTextAnchor(TextAnchor.HALF_ASCENT_LEFT);
 		annotation[0].setOutlineVisible(false);
@@ -113,7 +136,7 @@ public class MainWindow {
 		annotation[0].setFont(font);
 		annotation[0].setBackgroundPaint(Color.black);
 
-		annotation[1] = new XYTextAnnotation("", 10.D,
+		annotation[1] = new XYTextAnnotation("2", 10.D,
 				10.D);
 		annotation[1].setTextAnchor(TextAnchor.HALF_ASCENT_LEFT);
 		annotation[1].setOutlineVisible(false);
@@ -121,7 +144,7 @@ public class MainWindow {
 		annotation[1].setFont(font);
 		annotation[1].setBackgroundPaint(Color.black);
 
-		annotation[2] = new XYTextAnnotation("", 10.D,
+		annotation[2] = new XYTextAnnotation("3", 10.D,
 				10.D);
 		annotation[2].setTextAnchor(TextAnchor.HALF_ASCENT_LEFT);
 		annotation[2].setOutlineVisible(false);
@@ -129,7 +152,7 @@ public class MainWindow {
 		annotation[2].setFont(font);
 		annotation[2].setBackgroundPaint(Color.black);
 
-		annotation[3] = new XYTextAnnotation("", 10.D,
+		annotation[3] = new XYTextAnnotation("4", 10.D,
 				10.D);
 		annotation[3].setTextAnchor(TextAnchor.HALF_ASCENT_LEFT);
 		annotation[3].setOutlineVisible(false);
@@ -137,8 +160,9 @@ public class MainWindow {
 		annotation[3].setFont(font);
 		annotation[3].setBackgroundPaint(Color.black);
 
-		JPanel panel_5 = new JPanel();
-		panel_5.setBounds(-1, 5, 1355, 66);
+		final JPanel panel_5 = new JPanel();
+		FlowLayout fl_panel_5 = new FlowLayout(FlowLayout.CENTER, 5, 5);
+		panel_5.setLayout(fl_panel_5);
 
 		JPopupMenu popupMenu = new JPopupMenu();
 		addPopup(panel_5, popupMenu);
@@ -157,24 +181,27 @@ public class MainWindow {
 			}
 		});
 		popupMenu.add(mntmExportData);
-		panel_5.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));
 
 		JPanel panel = new JPanel();
 		panel_5.add(panel);
 		panel.setBorder(new TitledBorder(UIManager
 				.getBorder("TitledBorder.border"), "Power consumption",
 				TitledBorder.LEADING, TitledBorder.TOP, null, null));
-		panel.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));
+		FlowLayout fl_panel = new FlowLayout(FlowLayout.LEADING, 5, 5);
+		panel.setLayout(fl_panel);
 
 		final JButton consumptionButton = new JButton("Choose file");
 		final TimeSeries ConsumptionSeries = new TimeSeries("Consumption");
 		final JDateChooser dateChooserBegin = new JDateChooser();
+		dateChooserBegin.setDateFormatString("yyyy-MM-dd HH:mm");
 		final JDateChooser dateChooserEnd = new JDateChooser();
+		dateChooserEnd.setDateFormatString("yyyy-MM-dd HH:mm");
 		panel.add(consumptionButton);
 		consumptionButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				System.out.println("Consumption button was pressed!");
-				JFileChooser fileopen = new JFileChooser();
+				URL curdir = this.getClass().getClassLoader().getResource(".");
+				JFileChooser fileopen = new JFileChooser(curdir.getPath());
 				FileNameExtensionFilter filter = new FileNameExtensionFilter(
 						"CSV", "csv", "txt");
 				fileopen.setFileFilter(filter);
@@ -197,6 +224,10 @@ public class MainWindow {
 						dateChooserEnd.setDate(range.getUpperDate());
 					} catch (Exception e1) {
 						e1.printStackTrace();
+						JOptionPane.showMessageDialog(frame,
+								e1.getLocalizedMessage(),
+							    "Erro open file",
+							    JOptionPane.ERROR_MESSAGE);
 					}
 				}
 			}
@@ -206,7 +237,7 @@ public class MainWindow {
 		panel_5.add(panel_1);
 		panel_1.setBorder(new TitledBorder(null, "Insolation",
 				TitledBorder.LEADING, TitledBorder.TOP, null, null));
-		panel_1.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));
+		panel_1.setLayout(new FlowLayout(FlowLayout.LEADING, 5, 5));
 
 		final JButton pvLogButton = new JButton("Choose file");
 		final TimeSeries ProductionSeries = new TimeSeries("Production");
@@ -233,6 +264,10 @@ public class MainWindow {
 					}
 				} catch (Exception ex) {
 					ex.printStackTrace();
+					JOptionPane.showMessageDialog(frame,
+							ex.getLocalizedMessage(),
+						    "Erro open file",
+						    JOptionPane.ERROR_MESSAGE);
 				}
 			}
 		};
@@ -253,7 +288,8 @@ public class MainWindow {
 		pvLogButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				System.out.println("PV Panel Log button was pressed!");
-				JFileChooser fileopen = new JFileChooser();
+				URL curdir = this.getClass().getClassLoader().getResource(".");
+				JFileChooser fileopen = new JFileChooser(curdir.getPath());
 				FileNameExtensionFilter filter = new FileNameExtensionFilter(
 						"CSV", "csv", "txt");
 				fileopen.setFileFilter(filter);
@@ -269,6 +305,10 @@ public class MainWindow {
 								(Double) InclinationSpinner.getValue());
 					} catch (Exception e1) {
 						e1.printStackTrace();
+						JOptionPane.showMessageDialog(frame,
+								e1.getLocalizedMessage(),
+							    "Erro open file",
+							    JOptionPane.ERROR_MESSAGE);
 					}
 				}
 			}
@@ -279,7 +319,7 @@ public class MainWindow {
 		panel_2.setBorder(new TitledBorder(UIManager
 				.getBorder("TitledBorder.border"), "Time interval",
 				TitledBorder.LEADING, TitledBorder.TOP, null, null));
-		panel_2.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));
+		panel_2.setLayout(new FlowLayout(FlowLayout.LEADING, 5, 5));
 
 		JLabel lblNewLabel = new JLabel("From:");
 		panel_2.add(lblNewLabel);
@@ -298,6 +338,10 @@ public class MainWindow {
 							dateChooserEnd.getDate());
 				} catch (Exception e1) {
 					e1.printStackTrace();
+					JOptionPane.showMessageDialog(frame,
+							e1.getLocalizedMessage(),
+						    "Erro open file",
+						    JOptionPane.ERROR_MESSAGE);
 				}
 			}
 		};
@@ -315,22 +359,23 @@ public class MainWindow {
 		panel_5.add(panel_3);
 		panel_3.setBorder(new TitledBorder(null, "PV nominal power",
 				TitledBorder.LEADING, TitledBorder.TOP, null, null));
-		panel_3.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));
+		panel_3.setLayout(new FlowLayout(FlowLayout.LEADING, 5, 5));
 
-		PVPowerSpinner.setModel(new SpinnerNumberModel(5.0, 0.0, 100.0, 0.05));
+		PVPowerSpinner.setModel(new SpinnerNumberModel(5.0, 0.0, 100.0, 1.0));
 		final JSlider slider_1 = new JSlider();
+		slider_1.setMaximum(100);
 		slider_1.addMouseListener(mouseadapter);
-		slider_1.setMaximum(1000);
 		slider_1.setValue(5);
+		slider_1.setPreferredSize(new Dimension(170,23));
 		slider_1.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
-				PVPowerSpinner.setValue(slider_1.getValue() / 10.);
+				PVPowerSpinner.setValue(slider_1.getValue() * 1.);
 			}
 		});
 		PVPowerSpinner.addMouseListener(mouseadapter);
 		PVPowerSpinner.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
-				Double val = 10. * (Double) PVPowerSpinner.getValue();
+				Double val = (Double) PVPowerSpinner.getValue();
 				slider_1.setValue(val.intValue());
 				try {
 					System.out.println("\n PVPower change: " + showGraph);
@@ -342,6 +387,10 @@ public class MainWindow {
 					}
 				} catch (Exception ex) {
 					ex.printStackTrace();
+					JOptionPane.showMessageDialog(frame,
+							ex.getLocalizedMessage(),
+						    "Erro open file",
+						    JOptionPane.ERROR_MESSAGE);
 				}
 			}
 		});
@@ -362,20 +411,21 @@ public class MainWindow {
 		panel_4.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));
 
 		final JSpinner spinner = new JSpinner();
-		spinner.setModel(new SpinnerNumberModel(0.0, 0.0, 100.0, 0.05));
+		spinner.setModel(new SpinnerNumberModel(0.0, 0.0, 100.0, 1.0));
 		final JSlider slider = new JSlider();
-		slider.setMaximum(1000);
+		slider.setMaximum(100);
 		slider.setValue(0);
+		slider_1.setPreferredSize(new Dimension(170,23));
 		slider.addMouseListener(mouseadapter);
 		slider.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
-				spinner.setValue(slider.getValue() / 10.);
+				spinner.setValue(slider.getValue() * 1.);
 			}
 		});
 		spinner.addMouseListener(mouseadapter);
 		spinner.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
-				Double val = (Double) spinner.getValue() * 10.;
+				Double val = (Double) spinner.getValue();
 				slider.setValue(val.intValue());
 				try {
 					if (showGraph) {
@@ -384,10 +434,14 @@ public class MainWindow {
 					}
 				} catch (Exception ex) {
 					ex.printStackTrace();
+					JOptionPane.showMessageDialog(frame,
+							ex.getLocalizedMessage(),
+						    "Erro open file",
+						    JOptionPane.ERROR_MESSAGE);					
 				}
 			}
 		});
-		frame.getContentPane().setLayout(null);
+		frame.getContentPane().setLayout(new BorderLayout(0, 0));
 		panel_4.add(slider);
 
 		panel_4.add(spinner);
@@ -400,10 +454,9 @@ public class MainWindow {
 
 		JLabel label_3 = new JLabel("");
 		panel_5.add(label_3);
-		frame.getContentPane().add(panel_5);
+		frame.getContentPane().add(panel_5, BorderLayout.NORTH);
 
 		JLabel lblNewLabel1 = new JLabel("");
-		lblNewLabel1.setBounds(9, 82, 87, 14);
 		frame.getContentPane().add(lblNewLabel1);
 
 		PVSeries.addChangeListener(new SeriesChangeListener() {
@@ -420,8 +473,8 @@ public class MainWindow {
 		TimeSeriesCollection dataset3 = new TimeSeriesCollection();
 		dataset3.addSeries(BBSeries);
 
-		JFreeChart chart = ChartFactory.createTimeSeriesChart(
-				"Solar Estimator Chart",
+		final JFreeChart chart = ChartFactory.createTimeSeriesChart(
+				"",
 				// chart title
 				"Date",
 				// x-axis label
@@ -444,7 +497,29 @@ public class MainWindow {
 		plot.setAxisOffset(new RectangleInsets(5.0, 5.0, 5.0, 5.0));
 		plot.setDomainCrosshairVisible(true);
 		plot.setRangeCrosshairVisible(true);
-		plot.setRenderer(new XYDifferenceRenderer(Color.red, Color.green, false));
+		XYDifferenceRenderer renderer1 = new XYDifferenceRenderer(Color.red, Color.green, false);
+		renderer1.setSeriesToolTipGenerator(0, new StandardXYToolTipGenerator() {
+		      private static final long serialVersionUID = 1L;
+		      public String generateToolTip(XYDataset dataset, int series, int item) {
+		         String toolTipStr = "a";
+		         return toolTipStr;
+		      }
+		   });		
+		renderer1.setSeriesToolTipGenerator(1, new StandardXYToolTipGenerator() {
+		      private static final long serialVersionUID = 1L;
+		      public String generateToolTip(XYDataset dataset, int series, int item) {
+		         String toolTipStr = "b";
+		         return toolTipStr;
+		      }
+		   });		
+		plot.setRenderer(renderer1);
+//		plot.getRenderer().setSeriesToolTipGenerator(0, new StandardXYToolTipGenerator() {
+//		      private static final long serialVersionUID = 1L;
+//		      public String generateToolTip(XYDataset dataset, int series, int item) {
+//		         String toolTipStr = "asdf";
+//		         return toolTipStr;
+//		      }
+//		   });
 
 //		NumberAxis axis2 = new NumberAxis("kW");
 //		plot.setRangeAxis(1, axis2);
@@ -465,12 +540,19 @@ public class MainWindow {
 //		axis3.setRangeWithMargins(0., 1.);
 		axis3.setStandardTickUnits(NumberAxis.createStandardTickUnits());
 		axis3.setNumberFormatOverride(new DecimalFormat("##%"));		
-		plot.setRangeAxis(2, axis3);
+		plot.setRangeAxis(1, axis3);
 		plot.setRangeAxisLocation(2, AxisLocation.TOP_OR_RIGHT);
-		plot.setDataset(2, dataset3);
-		plot.mapDatasetToRangeAxis(2, 2);
+		plot.setDataset(1, dataset3);
+		plot.mapDatasetToRangeAxis(1, 1);
 		renderer2.setSeriesPaint(1, Color.yellow);
-		plot.setRenderer(2, renderer2);
+		renderer2.setSeriesToolTipGenerator(0, new StandardXYToolTipGenerator() {
+		      private static final long serialVersionUID = 1L;
+		      public String generateToolTip(XYDataset dataset, int series, int item) {
+		         String toolTipStr = "c";
+		         return toolTipStr;
+		      }
+		   });
+		plot.setRenderer(1, renderer2);
 		// XYItemRenderer r = plot.getRenderer();
 		// if (r instanceof XYLineAndShapeRenderer) {
 		// XYLineAndShapeRenderer renderer = (XYLineAndShapeRenderer) r;
@@ -478,13 +560,22 @@ public class MainWindow {
 		// renderer.setBaseShapesFilled(true);
 		// }
 		DateAxis axis = (DateAxis) plot.getDomainAxis();
-		axis.setDateFormatOverride(new SimpleDateFormat("MM/dd-HH"));
+		axis.setDateFormatOverride(new SimpleDateFormat("yyyy-MM-dd HH:mm"));
 		axis.setVerticalTickLabels(true);
 
-		ChartPanel chartPanel = new ChartPanel(chart);
+		final ChartPanel chartPanel = new ChartPanel(chart);
+		chartPanel.setBackground(Color.WHITE);
+		
+//		ImageIcon imageicon = new ImageIcon("c:\\Users\\parmax\\workspace\\solar_calculator\\image003.jpg"); 
+//		plot.setBackgroundImage(imageicon.getImage()); 
+//		plot.setBackgroundImageAlignment(Align.CENTER);
+		
+		chartPanel.setBorder(new LineBorder(new Color(0, 0, 0)));
+		chartPanel.setMaximumDrawWidth(1920);
+		chartPanel.setMaximumDrawHeight(1080);
 		chartPanel.setHorizontalAxisTrace(true);
-		chartPanel.setBounds(-1, 70, 1355, 592);
-		frame.getContentPane().add(chartPanel);
+		frame.getContentPane().add(chartPanel, BorderLayout.CENTER);
+		chartPanel.setLayout(new BorderLayout(0, 0));
 
 		plot.addAnnotation(annotation[0]);
 		plot.addAnnotation(annotation[1]);
@@ -504,10 +595,20 @@ public class MainWindow {
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
+			JOptionPane.showMessageDialog(frame,
+					e.getLocalizedMessage(),
+				    "Erro open file",
+				    JOptionPane.ERROR_MESSAGE);			
 		}
-
+		
 		InclinationSpinner.setValue(PVLogElement.getLatitude());
 
+		frame.addComponentListener(new ComponentAdapter() {
+			@Override
+			public void componentResized(ComponentEvent arg0) {
+				chartPanel.setSize(frame.getContentPane().getWidth(),frame.getContentPane().getHeight()-panel_5.getHeight());
+			}
+		});
 	}
 
 	private static void addPopup(Component component, final JPopupMenu popup) {

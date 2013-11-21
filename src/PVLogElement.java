@@ -1,4 +1,5 @@
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.*;
 import java.io.*;
 
@@ -6,8 +7,10 @@ import org.jfree.chart.annotations.XYTextAnnotation;
 import org.jfree.data.time.*;
 import org.supercsv.cellprocessor.*;
 import org.supercsv.cellprocessor.ift.*;
+import org.supercsv.exception.SuperCsvCellProcessorException;
 import org.supercsv.io.*;
 import org.supercsv.prefs.*;
+import org.supercsv.util.CsvContext;
 
 public class PVLogElement {
 
@@ -174,32 +177,28 @@ public class PVLogElement {
 					CsvPreference.EXCEL_NORTH_EUROPE_PREFERENCE);
 
 			final String[] header = mapReader.getHeader(true);
-			// for(int i=0; i<header.length; i++){
-			// System.out.print(header[i]);
-			// }
-			final CellProcessor[] processors = new CellProcessor[] { null, // device
-					new ParseDate("dd/MM/yyyy HH:mm", true), // date + time
-					null, // GHG_Factor
-					null, // Tariff_Cost
-					new StrReplace(",", ".", new ParseDouble()), // Amps_Raw_Data
-					null, // Amps_Raw Data_Min
-					null, // Amps_Raw_Data_Max
-					null, // kW_Raw_Data
-					null, // kW_Raw_Data_Min
-					null, // kW_Raw_Data_Max
-					null, // Cost_Raw_Data
-					null, // Cost_Raw_Data_Min
-					null, // Cost_Raw_Data_Max
-					null, // GHG_Raw_Data
-					null, // GHG_Raw_Data_Min
-					null, // GHG_Raw_Data_Max
-					null };
+			final CellProcessor[] processors = new CellProcessor[header.length];
+			for(int i=0; i<header.length; i++){
+				if(header[i]==null){
+					processors[i]=null;
+				} else {
+					header[i] = header[i].trim();
+				if("Time".compareTo(header[i])==0){
+						processors[i] = new ParseDate("dd/MM/yyyy HH:mm", true);
+				} else 
+					if ("Amps_Raw_Data".compareTo(header[i])==0) {
+						processors[i] = new StrReplace(",", ".", new ParseDouble()); 
+				} else {
+						processors[i] = null;
+				}
+				}
+			}
 
 			Map<String, Object> customerMap;
 			treeMap = new TreeMap<Date, Double>();
 			while ((customerMap = mapReader.read(header, processors)) != null) {
-				treeMap.put((Date) customerMap.get(header[1]),
-						(Double) customerMap.get(header[4]));
+				treeMap.put((Date) customerMap.get("Time"),
+						(Double) customerMap.get("Amps_Raw_Data"));
 			}
 			ConsumptionSeries.clear();
 			Date prevKey = (BeginCalc == null) ? treeMap.firstKey() : BeginCalc;
@@ -207,8 +206,8 @@ public class PVLogElement {
 			Double energy = 0.;
 			MaxConEnergy = 0.;
 			BeginData = treeMap.firstKey();
-			BeginData.setMinutes(59);
-			BeginData.setSeconds(59);
+//			BeginData.setMinutes(59);
+//			BeginData.setSeconds(59);
 			EndData = treeMap.lastKey();
 			final String[] eheader = new String[] { "date", "consumption_in",
 					"consumption_out" };
@@ -475,11 +474,11 @@ public class PVLogElement {
 						+ df.format(PVProductionEnergy) + " kWh ");
 				annotation[1].setX(BeginCalc.getTime() + 200.D);
 				annotation[1].setY(MaxEnergy - MaxEnergy * 0.04D);
-				annotation[2].setText(" Grid in "
+				annotation[2].setText(" Grid consumption "
 						+ df.format(GridInEnergy/60.) + " kWh ");
 				annotation[2].setX(BeginCalc.getTime() + 200.D);
 				annotation[2].setY(MaxEnergy - MaxEnergy * 0.08D);
-				annotation[3].setText(" Grid out "
+				annotation[3].setText(" Grid feed in "
 						+ df.format(GridOutEnergy/60.) + " kWh ");
 				annotation[3].setX(BeginCalc.getTime() + 200.D);
 				annotation[3].setY(MaxEnergy - MaxEnergy * 0.12D);
